@@ -1,0 +1,11 @@
+langgraph
+langchain
+langchain-openai
+dotenv
+streamlit
+fastapi
+uvicorn
+langgraph-checkpoint-sqlite
+tensorflow
+langchain_core
+python-multipart
