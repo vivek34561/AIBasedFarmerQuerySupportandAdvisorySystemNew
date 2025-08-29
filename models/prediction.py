@@ -7,7 +7,7 @@ from tensorflow.keras.preprocessing import image
 class PredictionPipeline:
     def __init__(self, filename):
         self.filename = filename
-        self.model_path = os.path.join("model", "model7.keras")  # <- your saved model
+        self.model_path = os.path.join("model", "model8.keras")  # <- your saved model
         self.class_indices_path = os.path.join("model", "class_indices.json")  # <- class mappings
 
         # Load trained model

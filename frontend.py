@@ -1,4 +1,3 @@
-# frontend.py
 import streamlit as st
 import requests
 from typing import List, Dict
@@ -25,8 +24,8 @@ def load_thread(thread_id: str) -> List[Dict]:
         return response.json()
     return []
 
-def send_message(thread_id: str, messages: List[Dict]) -> List[Dict]:
-    payload = {"thread_id": thread_id, "messages": messages}
+def send_message(thread_id: str, messages: List[Dict], language: str = "English") -> List[Dict]:
+    payload = {"thread_id": thread_id, "messages": messages, "language": language}
     response = requests.post(f"{API_URL}/chat", json=payload)
     if response.status_code == 200:
         return response.json()
@@ -42,7 +41,6 @@ if 'message_history' not in st.session_state:
 if 'chat_threads' not in st.session_state:
     st.session_state['chat_threads'] = get_all_threads()
 
-# Ensure current thread is in chat_threads
 if st.session_state['thread_id'] not in st.session_state['chat_threads']:
     st.session_state['chat_threads'].append(st.session_state['thread_id'])
 
@@ -50,7 +48,7 @@ if st.session_state['thread_id'] not in st.session_state['chat_threads']:
 st.sidebar.title("LangGraph Chatbot")
 language = st.sidebar.selectbox(
     "Select response language",
-    ["English", "Hindi", "Spanish", "French", "German", "Chinese", "Arabic"],
+    ["English", 'Malayalam', "Hindi", "Spanish", "French", "German", "Chinese", "Arabic"],
     index=0
 )
 
@@ -68,13 +66,27 @@ for thread_id in st.session_state['chat_threads'][::-1]:
         st.session_state['message_history'] = load_thread(thread_id)
 
 # -------------------- Chat Messages --------------------
+for msg in st.session_state['message_history']:
+    with st.chat_message(msg['role']):
+        st.text(msg['content'])
 
+user_input = st.chat_input("Type here")
+if user_input:
+    st.session_state['message_history'].append({"role": "user", "content": user_input})
+    with st.chat_message("user"):
+        st.text(user_input)
 
-# ---------------- prediction ------------------------
+    ai_messages = send_message(st.session_state['thread_id'], st.session_state['message_history'], language)
+    
+    for ai_msg in ai_messages:
+        st.session_state['message_history'].append(ai_msg)
+        with st.chat_message("assistant"):
+            st.text(ai_msg['content'])
 
+# -------------------- Prediction ------------------------
 uploaded_file = st.file_uploader("Choose an image", type=["jpg", "jpeg", "png"])
 if uploaded_file:
-    import requests, os
+    import shutil, os
     file_path = f"temp_{uploaded_file.name}"
     with open(file_path, "wb") as f:
         f.write(uploaded_file.read())
@@ -85,34 +97,10 @@ if uploaded_file:
         st.subheader("Predicted Disease:")
         st.write(data.get("prediction", "No prediction available"))
         probs = data.get("probabilities", [])
-        if probs:  # make sure the list is not empty
-            top_prob = max(probs)   # highest probability
-            st.write("Top Probability:", top_prob)
+        if probs:
+            st.write("Top Probability:", max(probs))
         else:
             st.write("No probabilities found")
     else:
         st.error("Error in prediction")
     os.remove(file_path)
-
-# -------------------- Chat Input --------------------
-
-for msg in st.session_state['message_history']:
-    with st.chat_message(msg['role']):
-        st.text(msg['content'])
-        
-user_input = st.chat_input("Type here")
-if user_input:
-    # Add user message to history
-    st.session_state['message_history'].append({"role": "user", "content": user_input})
-    with st.chat_message("user"):
-        st.text(user_input)
-
-    # Send messages to FastAPI backend
-    messages_to_send = st.session_state['message_history']
-    ai_messages = send_message(st.session_state['thread_id'], messages_to_send)
-
-    # Add AI messages to history
-    for ai_msg in ai_messages:
-        st.session_state['message_history'].append(ai_msg)
-        with st.chat_message("assistant"):
-            st.text(ai_msg['content'])
