@@ -193,6 +193,16 @@ class AudioProcessor(AudioProcessorBase):
     def recv(self, frame):
         return frame
 
+LANGUAGE_CODES = {
+    "English": "en-US",
+    "Hindi": "hi-IN",
+    "Malayalam": "ml-IN",
+    "Spanish": "es-ES",
+    "French": "fr-FR",
+    "German": "de-DE",
+    "Chinese": "zh-CN",
+    "Arabic": "ar-SA"
+}
 webrtc_ctx = webrtc_streamer(
     key="langgraph-voice",
     mode=WebRtcMode.SENDONLY,
@@ -204,7 +214,6 @@ if webrtc_ctx.audio_receiver:
     try:
         audio_frames = webrtc_ctx.audio_receiver.get_frames(timeout=1)
         if audio_frames:
-            # Save audio to temp file
             import wave
             temp_file = "temp_audio.wav"
             with wave.open(temp_file, "wb") as wf:
@@ -215,28 +224,42 @@ if webrtc_ctx.audio_receiver:
                     wf.writeframes(frame.to_bytes())
             with sr.AudioFile(temp_file) as source:
                 audio_data = recognizer.record(source)
-                user_input = recognizer.recognize_google(audio_data)
+                # Use selected language code
+                lang_code = LANGUAGE_CODES.get(language, "en-US")
+                user_input = recognizer.recognize_google(audio_data, language=lang_code)
             os.remove(temp_file)
             st.success(f"Recognized text: {user_input}")
         else:
             user_input = st.chat_input("Type here")
-    except Exception:
+    except Exception as e:
+        st.error(f"Speech recognition error: {e}")
         user_input = st.chat_input("Type here")
 else:
     user_input = st.chat_input("Type here")
 
 # -------------------- Send Chat --------------------
+# -------------------- Send Chat --------------------
+# -------------------- Send Chat --------------------
+# -------------------- Send Chat --------------------
 if user_input:
+    # Append user message
     st.session_state['message_history'].append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.text(user_input)
 
-    ai_messages = send_message(st.session_state['thread_id'], st.session_state['message_history'], language)
-    
+    # Send the FULL message history to backend for context
+    ai_messages = send_message(
+        st.session_state['thread_id'],
+        st.session_state['message_history'],
+        language
+    )
+
+    # Show assistant responses
     for ai_msg in ai_messages:
-        st.session_state['message_history'].append(ai_msg)
         with st.chat_message("assistant"):
             st.text(ai_msg['content'])
+        st.session_state['message_history'].append(ai_msg)
+
 
 # -------------------- Prediction ------------------------
 uploaded_file = st.file_uploader("Choose an image", type=["jpg", "jpeg", "png"])

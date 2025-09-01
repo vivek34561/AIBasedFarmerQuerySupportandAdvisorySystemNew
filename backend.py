@@ -11,34 +11,67 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langchain_openai import ChatOpenAI
 from models.prediction import PredictionPipeline
 from rag_system import get_rag_system
-
+from googletrans import Translator
+translator = Translator()
 load_dotenv()
 
+
+
+LANGUAGE_CODES = {
+    "English": "en",
+    "Hindi": "hi",
+    "Malayalam": "ml",
+    "Spanish": "es",
+    "French": "fr",
+    "German": "de",
+    "Chinese": "zh-cn",
+    "Arabic": "ar"
+}
+
 # -------------------- Chatbot Setup --------------------
-llm = ChatOpenAI()
+llm = ChatOpenAI(temperature=0.7)
 
 class ChatState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
 
-def chat_node(state: ChatState):
+from langchain_core.messages import HumanMessage, AIMessage
+
+from langchain_core.runnables import RunnableConfig
+from langchain_core.messages import AIMessage
+
+def chat_node(state: ChatState, config: RunnableConfig):
     messages = state['messages']
-    
-    # Get the latest user message
-    latest_message = messages[-1] if messages else None
-    
-    if latest_message and hasattr(latest_message, 'content'):
-        # Use RAG system to get context-aware response
+    target_language = (
+        (config.get("configurable") or {}).get("target_language") or "English"
+    )
+
+    latest = messages[-1] if messages else None
+    if latest and hasattr(latest, "content"):
+        user_text = latest.content
+        # translate input to English
+        try:
+            user_text_en = translator.translate(user_text, dest="en").text
+        except Exception:
+            user_text_en = user_text
+
         rag = get_rag_system()
-        response_content = rag.query(latest_message.content)
-        
-        # Create response message
-        from langchain_core.messages import AIMessage
-        response = AIMessage(content=response_content)
-    else:
-        # Fallback to normal LLM response
-        response = llm.invoke(messages)
-    
-    return {"messages": [response]}
+        response_content_en = rag.query(user_text_en)
+
+        # translate back if needed
+        if target_language.lower() != "english":
+            dest = LANGUAGE_CODES.get(target_language, "en")
+            try:
+                response_content = translator.translate(response_content_en, dest=dest).text
+            except Exception:
+                response_content = response_content_en
+        else:
+            response_content = response_content_en
+
+        return {"messages": [AIMessage(content=response_content)]}
+
+    # fallback (should rarely hit)
+    return {"messages": [AIMessage(content="")]}
+
 
 # -------------------- SQLite Setup --------------------
 conn = sqlite3.connect(database='chatbot.db', check_same_thread=False)
@@ -120,22 +153,33 @@ def load_thread(thread_id: str):
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Thread {thread_id} not found: {str(e)}")
 
+
+from langchain_core.messages import HumanMessage, AIMessage
+
+def convert_to_langchain_messages(messages: List[Message]):
+    result = []
+    for m in messages:
+        if m.role == 'user':
+            result.append(HumanMessage(content=m.content))
+        elif m.role == 'assistant':
+            result.append(AIMessage(content=m.content))
+    return result
+
 @app.post("/chat", response_model=List[Message])
 def chat_endpoint(request: ChatRequest):
     thread_id = request.thread_id or generate_thread_id()
-    CONFIG = {'configurable': {'thread_id': thread_id}}
-    human_messages = convert_to_human(request.messages)
+    CONFIG = {
+        'configurable': {
+            'thread_id': thread_id,
+            'target_language': request.language or "English"
+        }
+    }
+    lc_messages = convert_to_langchain_messages(request.messages)
 
-    # Add instruction for language if not English
-    if request.language and request.language.lower() != "english":
-        human_messages.append(HumanMessage(content=f"Please respond in {request.language}."))
+    response = chatbot.invoke({'messages': lc_messages}, config=CONFIG)
+    ai_messages = response['messages']
+    return [{"role": "assistant", "content": msg.content} for msg in ai_messages]
 
-    try:
-        response = chatbot.invoke({'messages': human_messages}, config=CONFIG)
-        ai_messages = response['messages']
-        return [{"role": "assistant", "content": msg.content} for msg in ai_messages]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/upload_document", response_model=DocumentUploadResponse)
 async def upload_document(file: UploadFile = File(...)):

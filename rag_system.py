@@ -44,7 +44,8 @@ class RAGSystem:
         
         # Create RAG chain
         self.rag_chain = self._create_rag_chain()
-    
+        self.embeddings = OpenAIEmbeddings()
+        self.llm = ChatOpenAI(temperature=0.3)
     def _initialize_vector_store(self) -> Chroma:
         """Initialize or load existing ChromaDB vector store"""
         try:

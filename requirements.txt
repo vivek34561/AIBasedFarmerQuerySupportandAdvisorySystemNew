@@ -21,3 +21,4 @@ chromadb
 pypdf2
 python-docx
 openpyxl
+googletrans
