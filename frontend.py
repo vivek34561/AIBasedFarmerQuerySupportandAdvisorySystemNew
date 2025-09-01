@@ -13,6 +13,32 @@ def get_all_threads() -> List[str]:
     response = requests.get(f"{API_URL}/threads")
     return response.json().get("threads", []) if response.status_code == 200 else []
 
+def upload_document(file) -> Dict:
+    """Upload a document to the RAG system"""
+    files = {"file": (file.name, file, file.type)}
+    response = requests.post(f"{API_URL}/upload_document", files=files)
+    return response.json() if response.status_code == 200 else {"success": False, "message": "Upload failed"}
+
+def get_documents() -> List[str]:
+    """Get list of documents in the RAG system"""
+    response = requests.get(f"{API_URL}/documents")
+    return response.json().get("documents", []) if response.status_code == 200 else []
+
+def refresh_documents() -> Dict:
+    """Refresh the document vector store"""
+    response = requests.post(f"{API_URL}/refresh_documents")
+    return response.json() if response.status_code == 200 else {"success": False, "message": "Refresh failed"}
+
+def force_process_documents() -> Dict:
+    """Force process all documents in the folder"""
+    response = requests.post(f"{API_URL}/force_process_documents")
+    return response.json() if response.status_code == 200 else {"success": False, "message": "Force processing failed"}
+
+def get_processing_status() -> Dict:
+    """Get the current processing status"""
+    response = requests.get(f"{API_URL}/processing_status")
+    return response.json() if response.status_code == 200 else {"error": "Failed to get status"}
+
 def create_new_thread() -> str:
     response = requests.post(f"{API_URL}/new_thread")
     return response.json().get("thread_id", "") if response.status_code == 200 else ""
@@ -55,6 +81,99 @@ for thread_id in st.session_state['chat_threads'][::-1]:
     if st.sidebar.button(str(thread_id)):
         st.session_state['thread_id'] = thread_id
         st.session_state['message_history'] = load_thread(thread_id)
+
+# -------------------- Document Management --------------------
+st.sidebar.header("📚 Document Management")
+
+# Document upload
+st.sidebar.subheader("Upload Document")
+uploaded_doc = st.sidebar.file_uploader(
+    "Upload documents for RAG",
+    type=["pdf", "txt", "docx"],
+    help="Upload PDF, TXT, or DOCX files to enhance the chatbot's knowledge base"
+)
+
+if uploaded_doc:
+    if st.sidebar.button("Upload to Knowledge Base"):
+        with st.sidebar.spinner("Uploading and processing document..."):
+            result = upload_document(uploaded_doc)
+            if result.get("success", False):
+                st.sidebar.success(f"✅ {result.get('message', 'Document uploaded successfully!')}")
+                st.rerun()
+            else:
+                st.sidebar.error(f"❌ {result.get('message', 'Upload failed')}")
+
+# Document processing status
+st.sidebar.subheader("📊 Processing Status")
+try:
+    status = get_processing_status()
+    if "error" not in status:
+        processed = status.get("processed_count", 0)
+        total = status.get("total_count", 0)
+        new = status.get("new_count", 0)
+        
+        # Status indicator
+        if new == 0:
+            st.sidebar.success(f"✅ Up to date! ({processed}/{total} documents processed)")
+        else:
+            st.sidebar.warning(f"⚠️ {new} new documents need processing ({processed}/{total} processed)")
+        
+        # Show processed documents
+        if processed > 0:
+            st.sidebar.write(f"📄 **Processed documents ({processed}):**")
+            for doc in status.get("processed_documents", [])[:5]:  # Show first 5
+                st.sidebar.write(f"• {doc}")
+            if processed > 5:
+                st.sidebar.write(f"... and {processed - 5} more")
+        
+        # Show new documents
+        if new > 0:
+            st.sidebar.write(f"🆕 **New documents ({new}):**")
+            for doc in status.get("new_documents", []):
+                st.sidebar.write(f"• {doc}")
+    else:
+        st.sidebar.error(f"Error getting status: {status.get('error')}")
+except Exception as e:
+    st.sidebar.error(f"Error loading status: {e}")
+
+# List all documents in folder
+st.sidebar.subheader("📁 All Documents in Folder")
+try:
+    documents = get_documents()
+    if documents:
+        st.sidebar.write(f"📄 **{len(documents)} documents found:**")
+        for doc in documents:
+            st.sidebar.write(f"• {doc}")
+    else:
+        st.sidebar.write("📭 No documents in folder")
+except Exception as e:
+    st.sidebar.error(f"Error loading documents: {e}")
+
+# Document processing buttons
+col1, col2 = st.sidebar.columns(2)
+
+with col1:
+    if st.button("🔄 Refresh"):
+        with st.sidebar.spinner("Refreshing knowledge base..."):
+            result = refresh_documents()
+            if result.get("success", False):
+                st.sidebar.success("✅ Knowledge base refreshed!")
+            else:
+                st.sidebar.error("❌ Failed to refresh knowledge base")
+
+with col2:
+    if st.button("⚡ Force Process"):
+        with st.sidebar.spinner("Processing all documents..."):
+            result = force_process_documents()
+            if result.get("success", False):
+                st.sidebar.success("✅ All documents processed!")
+                st.rerun()
+            else:
+                st.sidebar.error("❌ Failed to process documents")
+
+# -------------------- Main Chat Area --------------------
+st.title("🤖 RAG-Enhanced Chatbot")
+st.info("💡 **How it works:** This chatbot uses Retrieval Augmented Generation (RAG) to answer questions based on your uploaded documents. Upload PDFs, Word docs, or text files to the knowledge base, and the chatbot will use them to provide contextual answers!")
 
 # -------------------- Chat Messages --------------------
 for msg in st.session_state['message_history']:

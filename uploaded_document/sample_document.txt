@@ -1,0 +1,29 @@
+RAG-Enhanced Chatbot Documentation
+
+Welcome to the RAG-Enhanced Chatbot! This system combines the power of Large Language Models with Retrieval Augmented Generation to provide accurate, context-aware responses based on your documents.
+
+Key Features:
+1. Document Upload: Supports PDF, TXT, and DOCX file formats
+2. Vector Storage: Uses ChromaDB for efficient document embedding storage
+3. Intelligent Retrieval: Finds relevant document sections for each query
+4. Contextual Responses: Generates answers based on retrieved content
+
+How to Use:
+1. Upload documents using the sidebar document uploader
+2. Ask questions related to your uploaded documents
+3. The chatbot will search through your documents and provide relevant answers
+4. Use the refresh button to reload documents if needed
+
+Technical Details:
+- Embeddings: Uses OpenAI embeddings for semantic search
+- Text Splitting: Documents are chunked into 1000-character segments with 200-character overlap
+- Retrieval: Top 4 most relevant chunks are used for context
+- Language Support: Supports multiple languages for responses
+
+Example Use Cases:
+- Ask questions about uploaded manuals or documentation
+- Get summaries of research papers
+- Query business documents and policies
+- Extract information from academic texts
+
+This system is designed to help you get accurate answers from your document collection quickly and efficiently.

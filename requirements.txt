@@ -1,7 +1,10 @@
 langgraph
 langchain
 langchain-openai
-dotenv
+langchain-community
+langchain-text-splitters
+langchain-chroma
+python-dotenv
 streamlit
 fastapi
 uvicorn
@@ -14,3 +17,7 @@ pyaudio
 streamlit-webrtc
 pydub
 pipwin
+chromadb
+pypdf2
+python-docx
+openpyxl

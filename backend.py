@@ -10,6 +10,7 @@ from langgraph.graph.message import add_messages
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langchain_openai import ChatOpenAI
 from models.prediction import PredictionPipeline
+from rag_system import get_rag_system
 
 load_dotenv()
 
@@ -21,7 +22,22 @@ class ChatState(TypedDict):
 
 def chat_node(state: ChatState):
     messages = state['messages']
-    response = llm.invoke(messages)
+    
+    # Get the latest user message
+    latest_message = messages[-1] if messages else None
+    
+    if latest_message and hasattr(latest_message, 'content'):
+        # Use RAG system to get context-aware response
+        rag = get_rag_system()
+        response_content = rag.query(latest_message.content)
+        
+        # Create response message
+        from langchain_core.messages import AIMessage
+        response = AIMessage(content=response_content)
+    else:
+        # Fallback to normal LLM response
+        response = llm.invoke(messages)
+    
     return {"messages": [response]}
 
 # -------------------- SQLite Setup --------------------
@@ -58,6 +74,15 @@ class NewThreadResponse(BaseModel):
 
 class ThreadListResponse(BaseModel):
     threads: List[str]
+
+class DocumentUploadResponse(BaseModel):
+    success: bool
+    message: str
+    filename: Optional[str] = None
+
+class DocumentListResponse(BaseModel):
+    documents: List[str]
+    count: int
 
 # -------------------- Utility Functions --------------------
 def generate_thread_id():
@@ -109,6 +134,96 @@ def chat_endpoint(request: ChatRequest):
         response = chatbot.invoke({'messages': human_messages}, config=CONFIG)
         ai_messages = response['messages']
         return [{"role": "assistant", "content": msg.content} for msg in ai_messages]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/upload_document", response_model=DocumentUploadResponse)
+async def upload_document(file: UploadFile = File(...)):
+    """Upload a document to the RAG system"""
+    try:
+        # Check file type
+        allowed_extensions = ['.pdf', '.txt', '.docx']
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        
+        if file_ext not in allowed_extensions:
+            return DocumentUploadResponse(
+                success=False,
+                message=f"File type {file_ext} not supported. Allowed types: {', '.join(allowed_extensions)}"
+            )
+        
+        # Save temporary file
+        temp_file = f"temp_{file.filename}"
+        with open(temp_file, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Add to RAG system
+        rag = get_rag_system()
+        success = rag.add_document(temp_file, file.filename)
+        
+        # Clean up temp file
+        os.remove(temp_file)
+        
+        if success:
+            return DocumentUploadResponse(
+                success=True,
+                message="Document uploaded and processed successfully",
+                filename=file.filename
+            )
+        else:
+            return DocumentUploadResponse(
+                success=False,
+                message="Failed to process document"
+            )
+            
+    except Exception as e:
+        return DocumentUploadResponse(
+            success=False,
+            message=f"Error uploading document: {str(e)}"
+        )
+
+@app.get("/documents", response_model=DocumentListResponse)
+def get_documents():
+    """Get list of all documents in the RAG system"""
+    try:
+        rag = get_rag_system()
+        documents = rag.list_documents()
+        return DocumentListResponse(documents=documents, count=len(documents))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/refresh_documents")
+def refresh_documents():
+    """Refresh the vector store by reloading all documents"""
+    try:
+        rag = get_rag_system()
+        success = rag.refresh_vector_store()
+        if success:
+            return {"success": True, "message": "Vector store refreshed successfully"}
+        else:
+            return {"success": False, "message": "Failed to refresh vector store"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/force_process_documents")
+def force_process_documents():
+    """Force process all documents in the uploaded_document folder"""
+    try:
+        rag = get_rag_system()
+        success = rag.force_process_all_documents()
+        if success:
+            return {"success": True, "message": "All documents processed successfully"}
+        else:
+            return {"success": False, "message": "Failed to process documents"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/processing_status")
+def get_processing_status():
+    """Get the current processing status of documents"""
+    try:
+        rag = get_rag_system()
+        status = rag.get_processing_status()
+        return status
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
