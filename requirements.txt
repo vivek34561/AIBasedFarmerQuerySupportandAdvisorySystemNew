@@ -9,3 +9,8 @@ langgraph-checkpoint-sqlite
 tensorflow
 langchain_core
 python-multipart
+SpeechRecognition
+pyaudio
+streamlit-webrtc
+pydub
+pipwin
