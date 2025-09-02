@@ -90,7 +90,7 @@ system_prompt = """You are a helpful medical assistant. Use the following contex
 If you don't know the answer based on the context, say so. Be accurate and helpful.
 
 Context: {context}
-
+up
 Remember to:
 1. Be empathetic and professional
 2. Provide accurate information based on the context
