@@ -70,7 +70,20 @@ except Exception as e:
     retriever = None
 
 # -------------------- Chatbot Setup --------------------
-llm = ChatOpenAI(temperature=0.7)
+from langchain_groq import ChatGroq
+# ... other imports ...
+
+# -------------------- LLM Setup --------------------
+# Option 1: Groq (Recommended)
+
+llm = ChatGroq(
+    api_key=os.getenv("GROQ_API_KEY"),
+    model="openai/gpt-oss-120b",
+    temperature=0.7,
+    # You can optionally include other kwargs like timeout or max_retries.
+)
+
+
 
 # RAG prompt template
 system_prompt = """You are a helpful medical assistant. Use the following context to answer questions.
@@ -271,6 +284,64 @@ def get_documents():
         return DocumentListResponse(documents=[])
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/add_document")
+async def add_document(file: UploadFile = File(...)):
+    """Add a single document without reprocessing everything"""
+    try:
+        # Save file
+        file_path = os.path.join("documents", file.filename)
+        os.makedirs("documents", exist_ok=True)
+        
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Process just this document
+        from documents_manager import DocumentManager
+        manager = DocumentManager()
+        success = manager.add_single_document(file_path)
+        
+        if success:
+            return {"message": f"Document {file.filename} added successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to process document")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/document_status")
+def get_document_status():
+    """Get status of all documents"""
+    try:
+        from documents_manager import DocumentManager
+        manager = DocumentManager()
+        docs = manager.list_documents()
+        
+        processed = [d for d in docs if d['status'] == 'processed']
+        pending = [d for d in docs if d['status'] == 'pending']
+        
+        return {
+            "total": len(docs),
+            "processed": len(processed),
+            "pending": len(pending),
+            "documents": docs
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/sync_documents")
+def sync_documents():
+    """Process only new/modified documents"""
+    try:
+        from documents_manager import DocumentManager
+        manager = DocumentManager()
+        count = manager.sync_documents()
+        return {"message": f"Processed {count} new/modified documents"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 @app.get("/processing_status", response_model=ProcessingStatusResponse)
 def get_processing_status():
