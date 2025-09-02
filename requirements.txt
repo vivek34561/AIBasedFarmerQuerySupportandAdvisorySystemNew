@@ -32,3 +32,8 @@ langchain-text-splitters
 pypdf
 docx2txt
 langchain-groq
+openai-whisper
+streamlit-audiorec
+pydub
+ffmpeg-python
+numpy
