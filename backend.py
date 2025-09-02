@@ -8,7 +8,8 @@ from langchain_core.messages import HumanMessage, BaseMessage, AIMessage, System
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.sqlite import SqliteSaver
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import ChatOpenAI
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -16,21 +17,44 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from pinecone import Pinecone
 from models.prediction import PredictionPipeline
 import logging
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 load_dotenv()
 
 # -------------------- RAG Setup --------------------
-# Update the RAG Setup section in backend.py
-# -------------------- RAG Setup --------------------
 try:
     pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
     index_name = os.getenv("PINECONE_INDEX_NAME", "medical-chatbot")
     
+    # Initialize Hugging Face embeddings
+    # You can choose different models based on your needs
+    # Some popular options:
+    # - "sentence-transformers/all-MiniLM-L6-v2" (384 dimensions, fast)
+    # - "sentence-transformers/all-mpnet-base-v2" (768 dimensions, balanced)
+    # - "BAAI/bge-large-en-v1.5" (1024 dimensions, high quality)
+    # - "sentence-transformers/all-MiniLM-L12-v2" (384 dimensions)
+    
+    model_name = os.getenv("HUGGINGFACE_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+    embeddings = HuggingFaceEmbeddings(
+        model_name=model_name,
+        model_kwargs={'device': 'cpu'},  # Change to 'cuda' if you have GPU
+        encode_kwargs={'normalize_embeddings': True}  # For better similarity search
+    )
+    
+    # Get embedding dimension
+    embedding_dimension = len(embeddings.embed_query("test"))
+    logger.info(f"Using embedding model: {model_name} with dimension: {embedding_dimension}")
+    
     # Check if index exists
     if index_name in pc.list_indexes().names():
         index = pc.Index(index_name)
-        embeddings = OpenAIEmbeddings()
+        # Verify dimension matches
+        index_stats = index.describe_index_stats()
+        if index_stats.get('dimension') != embedding_dimension:
+            logger.warning(f"Index dimension ({index_stats.get('dimension')}) doesn't match embedding dimension ({embedding_dimension})")
+            logger.warning("You may need to recreate the index with the correct dimension")
+        
         vector_store = PineconeVectorStore(
             index=index,
             embedding=embeddings,
@@ -39,11 +63,12 @@ try:
         )
         retriever = vector_store.as_retriever(search_kwargs={"k": 3})
     else:
-        print(f"Warning: Pinecone index '{index_name}' not found. RAG features will be disabled.")
+        logger.warning(f"Pinecone index '{index_name}' not found. RAG features will be disabled.")
         retriever = None
 except Exception as e:
-    print(f"Warning: Could not initialize Pinecone: {e}. RAG features will be disabled.")
+    logger.error(f"Could not initialize Pinecone: {e}. RAG features will be disabled.")
     retriever = None
+
 # -------------------- Chatbot Setup --------------------
 llm = ChatOpenAI(temperature=0.7)
 
@@ -147,6 +172,13 @@ class NewThreadResponse(BaseModel):
 class ThreadListResponse(BaseModel):
     threads: List[str]
 
+class DocumentListResponse(BaseModel):
+    documents: List[str]
+
+class ProcessingStatusResponse(BaseModel):
+    total_documents: int
+    processed_chunks: int
+
 # -------------------- Utility Functions --------------------
 def generate_thread_id():
     return str(uuid.uuid4())
@@ -228,6 +260,38 @@ def chat_endpoint(request: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/documents", response_model=DocumentListResponse)
+def get_documents():
+    """Get list of documents in the knowledge base"""
+    try:
+        documents_folder = "documents"
+        if os.path.exists(documents_folder):
+            documents = [f for f in os.listdir(documents_folder) if os.path.isfile(os.path.join(documents_folder, f))]
+            return DocumentListResponse(documents=documents)
+        return DocumentListResponse(documents=[])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/processing_status", response_model=ProcessingStatusResponse)
+def get_processing_status():
+    """Get the status of document processing"""
+    try:
+        documents_folder = "documents"
+        total_docs = 0
+        if os.path.exists(documents_folder):
+            total_docs = len([f for f in os.listdir(documents_folder) if os.path.isfile(os.path.join(documents_folder, f))])
+        
+        # Get chunk count from Pinecone if available
+        processed_chunks = 0
+        if retriever and index_name in pc.list_indexes().names():
+            index = pc.Index(index_name)
+            stats = index.describe_index_stats()
+            processed_chunks = stats.get('total_vector_count', 0)
+        
+        return ProcessingStatusResponse(total_documents=total_docs, processed_chunks=processed_chunks)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/predict-disease/")
 async def predict_disease(file: UploadFile = File(...)):
     try:
@@ -258,7 +322,6 @@ async def upload_document(file: UploadFile = File(...)):
         # Process the document
         from document_processor import DocumentProcessor
         processor = DocumentProcessor()
-        processor.load_document(file_path)
         processor.process_documents()
         
         return {"message": f"Document {file.filename} uploaded and processed successfully"}
