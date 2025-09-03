@@ -1,8 +1,10 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, TypedDict, Annotated
 import uuid, sqlite3, shutil, os
+import tempfile
+import speech_recognition as sr
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, BaseMessage, AIMessage, SystemMessage
 from langgraph.graph import StateGraph, START, END
@@ -86,16 +88,18 @@ llm = ChatGroq(
 
 
 # RAG prompt template
-system_prompt = """You are a helpful medical assistant. Use the following context to answer questions.
+system_prompt = """You are a helpful agricultural advisory assistant for farmers in Kerala. 
+Use the following context to answer questions about crops, pests, diseases, weather, schemes, and farming practices.
 If you don't know the answer based on the context, say so. Be accurate and helpful.
 
 Context: {context}
-up
+
 Remember to:
-1. Be empathetic and professional
-2. Provide accurate information based on the context
-3. Suggest consulting healthcare professionals for serious concerns
-4. Maintain conversation history context
+1. Provide practical, actionable advice for farmers
+2. Consider local Kerala conditions and crops
+3. Mention safety precautions for pesticides/chemicals
+4. Suggest consulting local Krishi Bhavan officers for complex issues
+5. Include relevant government schemes when applicable
 """
 
 prompt = ChatPromptTemplate.from_messages([
@@ -215,6 +219,44 @@ def convert_messages(messages: List[Message]):
     return converted
 
 # -------------------- API Endpoints --------------------
+@app.post("/voice_query")
+async def voice_query(file: UploadFile = File(...), language: str = Form("Malayalam")):
+    """
+    Accepts a voice query (audio file), transcribes it, and returns RAG chatbot answer.
+    """
+    try:
+        # Save uploaded audio to temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
+            shutil.copyfileobj(file.file, temp_audio)
+            temp_audio_path = temp_audio.name
+
+        # Transcribe audio
+        recognizer = sr.Recognizer()
+        with sr.AudioFile(temp_audio_path) as source:
+            audio_data = recognizer.record(source)
+            # Use Malayalam or selected language
+            lang_code = {
+                "Malayalam": "ml-IN", "English": "en-US", "Hindi": "hi-IN", "Spanish": "es-ES", "French": "fr-FR", "German": "de-DE", "Chinese": "zh-CN", "Arabic": "ar-SA"
+            }.get(language, "ml-IN")
+            try:
+                query_text = recognizer.recognize_google(audio_data, language=lang_code)
+            except Exception as e:
+                os.remove(temp_audio_path)
+                return {"answer": f"Could not transcribe audio: {str(e)}"}
+
+        os.remove(temp_audio_path)
+
+        # Pass transcribed text to RAG chatbot
+        # Use a new thread for each voice query (or you can use session)
+        thread_id = str(uuid.uuid4())
+        messages = [HumanMessage(content=query_text)]
+        CONFIG = {'configurable': {'thread_id': thread_id}}
+        response = chatbot.invoke({'messages': messages}, config=CONFIG)
+        ai_messages = response['messages']
+        answer = ai_messages[0].content if ai_messages else "No answer generated."
+        return {"answer": answer, "transcription": query_text}
+    except Exception as e:
+        return {"answer": f"Voice query failed: {str(e)}"}
 @app.get("/threads", response_model=ThreadListResponse)
 def get_all_threads():
     threads = retrieve_all_threads()

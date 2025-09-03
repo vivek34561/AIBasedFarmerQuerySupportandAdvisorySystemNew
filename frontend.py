@@ -7,8 +7,7 @@ import json
 
 # To be installed: pip install streamlit-webrtc
 from streamlit_webrtc import webrtc_streamer, AudioProcessorBase, WebRtcMode
-import speech_recognition as sr
-import av
+import st_audiorec
 
 # -------------------- Configuration --------------------
 API_URL = "http://localhost:8000"
@@ -90,12 +89,12 @@ if 'last_transcription' not in st.session_state:
     st.session_state.last_transcription = ""
 
 # -------------------- Main UI --------------------
-st.set_page_config(page_title="Medical Assistant", page_icon="🏥", layout="wide")
-st.title("🏥 Medical Assistant")
-st.caption("AI-powered medical chatbot with disease prediction capabilities")
+st.set_page_config(page_title="Digital Krishi Officer", page_icon="🌾", layout="wide")
+st.title("🌾 Digital Krishi Officer - കൃഷി സഹായി")
+st.caption("AI-powered farming assistant for Kerala farmers")
 
-# Create tabs
-tab1, tab2 = st.tabs(["💬 Chatbot", "🔬 Disease Prediction"])
+# Update tabs
+tab1, tab2, tab3 = st.tabs(["💬 Ask Expert", "🌿 Crop Disease Detection", "📊 Dashboard"])
 
 # -------------------- Chatbot Tab --------------------
 with tab1:
@@ -150,51 +149,32 @@ with tab1:
             st.metric("Documents", total_docs)
             st.metric("Chunks", processed_chunks)
         
-        # Voice Input Section
+        # Voice Input Section (st-audiorec)
         st.divider()
-        st.subheader("🎤 Voice Input")
-        
+        st.subheader("🎤 Voice Input (st-audiorec)")
+        st.info("Record your question and get instant advice in Malayalam or other languages.")
+        audio_bytes = st_audiorec.st_audiorec()
         voice_lang = st.selectbox(
             "Speech Language",
-            ["English", "Malayalam", "Hindi", "Spanish", "French", "German", "Chinese", "Arabic"],
+            ["Malayalam", "English", "Hindi", "Spanish", "French", "German", "Chinese", "Arabic"],
             key="voice_lang_select"
         )
         st.session_state.voice_lang = voice_lang
-        
-        class AudioProcessor(AudioProcessorBase):
-            def __init__(self):
-                self.recognizer = sr.Recognizer()
-                self.audio_data = None
-
-            def recv(self, frame: av.AudioFrame) -> av.AudioFrame:
-                raw_audio = frame.to_ndarray(format="s16", layout="mono")
-                self.audio_data = sr.AudioData(raw_audio.tobytes(), frame.sample_rate, 2)
-                try:
-                    lang_code = {
-                        "English": "en-US", "Hindi": "hi-IN", "Malayalam": "ml-IN", 
-                        "Spanish": "es-ES", "French": "fr-FR", "German": "de-DE", 
-                        "Chinese": "zh-CN", "Arabic": "ar-SA"
-                    }.get(st.session_state.voice_lang, "en-US")
-                    text = self.recognizer.recognize_google(self.audio_data, language=lang_code)
-                    st.session_state.last_transcription = text
-                except:
-                    st.session_state.last_transcription = ""
-                return frame
-
-        webrtc_ctx = webrtc_streamer(
-            key="speech-to-text",
-            mode=WebRtcMode.SENDONLY,
-            audio_processor_factory=AudioProcessor,
-            media_stream_constraints={"audio": True, "video": False},
-            async_processing=True,
-        )
-        
-        if st.session_state.last_transcription:
-            st.info(f"Transcribed: {st.session_state.last_transcription}")
-            if st.button("Use this text", use_container_width=True):
-                # This will trigger the chat input
-                st.session_state.pending_input = st.session_state.last_transcription
-                st.rerun()
+        if audio_bytes is not None:
+            st.audio(audio_bytes, format="audio/wav")
+            if st.button("Send Voice Query", use_container_width=True):
+                # Send audio to backend for processing
+                files = {"file": ("voice_query.wav", audio_bytes, "audio/wav")}
+                params = {"language": voice_lang}
+                response = requests.post(f"{API_URL}/voice_query", files=files, data=params)
+                if response.status_code == 200:
+                    result = response.json()
+                    answer = result.get("answer", "No answer received.")
+                    st.session_state.pending_input = answer
+                    st.success("Voice query processed!")
+                    st.rerun()
+                else:
+                    st.error(f"Voice query failed: {response.text}")
     
     with chat_col:
         st.header("Chat Conversation")
