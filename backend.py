@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+app = FastAPI(title="RAG LangGraph Chatbot API")
 from typing import List, Optional, TypedDict, Annotated
 import uuid, sqlite3, shutil, os
 import tempfile
@@ -165,7 +166,7 @@ graph.add_edge("chat_node", END)
 chatbot = graph.compile(checkpointer=checkpointer)
 
 # -------------------- FastAPI Setup --------------------
-app = FastAPI(title="RAG LangGraph Chatbot API")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
