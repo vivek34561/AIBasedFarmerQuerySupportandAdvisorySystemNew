@@ -1,116 +1,67 @@
-# 🌾 AgriAssist AI
+# 🌾 AgroAssist AI – AI-Powered Farmer Advisory System  
 
-🚀 **AI-Powered Farmer Advisory & Crop Management System**
+AgroAssist AI is an **AI-powered farmer advisory platform** that helps farmers get **real-time answers** to agricultural queries, **view mandi prices**, receive **weather-based crop recommendations**, and even **predict crop diseases** — all in their **native language** with voice support.
 
-AgriAssist AI is an end-to-end **farmer support platform** that provides **real-time query resolution, mandi price updates, crop recommendations, and disease prediction** using **LLMs, RAG pipelines, and ML models** — all accessible via **chat and voice interface**.
-
----
-
-## ✨ Features
-
-✅ **Real-Time Farmer Query Resolution** – Multilingual chatbot using **FastAPI + LangChain + Pinecone**
-✅ **Mandi Price & Weather Insights** – Integrated **data.gov.in API** for daily market prices & weather-based recommendations
-✅ **Personalized Crop Suggestions** – AI-driven crop recommendations based on soil, weather, and location
-✅ **Voice-Enabled Interaction** – Speech-to-text (STT) & text-to-speech (TTS) for easy communication
-✅ **Crop Disease Prediction** – ML-powered pipeline for early disease detection & risk reduction
-✅ **Feedback & Escalation System** – Continuous improvement with **SQLite-based feedback tracking**
-✅ **Interactive Dashboard** – Built with **Streamlit**, featuring chat UI and visualization
+## 🚀 Features
+- **🧠 AI-Powered Advisory** – Built using **FastAPI, LangChain, Pinecone**, enabling **real-time, multilingual query resolution**.
+- **📈 Mandi Prices & Weather** – Fetches **live mandi prices** and gives **weather-based crop suggestions** for better decision-making.
+- **🎙️ Voice Support** – Integrated **speech-to-text** for hands-free usage.
+- **📊 Interactive Dashboard** – Streamlit-based UI with **chat interface, voice input**, and **personalized recommendations**.
+- **📢 Feedback & Escalation System** – SQLite-powered feedback collection for **continuous improvement**.
+- **🩺 Disease Prediction** – ML-powered pipeline for **early detection**, helping farmers reduce crop losses.
 
 ---
 
-## 🏗️ Tech Stack
+## 🖼️ Screenshots  
 
-* **Backend:** FastAPI, LangChain, Pinecone, SQLite
-* **Frontend:** Streamlit (Interactive Chat UI + Dashboard)
-* **Machine Learning:** Scikit-learn, XGBoost, CatBoost
-* **Generative AI:** OpenAI GPT-4 / GPT-4o, HuggingFace Transformers
-* **Speech:** OpenAI Whisper (STT), gTTS / pyttsx3 (TTS)
-* **Deployment:** Docker, Render / Streamlit Cloud
+### 🏠 Dashboard – Home Page  
+![Dashboard Screenshot](./Screenshot%202025-09-14%20101417.png)
+
+### 🤖 AI Chatbot – Real-time Query Resolution  
+![Chatbot Screenshot](./Screenshot%202025-09-14%20104347.png)
+
+### 📈 Mandi Price & Crop Recommendation  
+![Mandi Price Screenshot](./Screenshot%202025-09-14%20104405.png)
+
+### 🩺 Disease Prediction  
+![Disease Prediction Screenshot](./Screenshot%202025-09-14%20104448.png)
+
+### 📢 Feedback & Escalation System  
+![Feedback Screenshot](./Screenshot%202025-09-14%20104508.png)
 
 ---
 
-## 📦 Installation & Setup
+## 🛠️ Tech Stack  
 
-### 1️⃣ Clone the Repository
+- **Backend:** FastAPI, LangChain, Pinecone, SQLite  
+- **Frontend:** Streamlit  
+- **Machine Learning:** Scikit-learn, XGBoost, CatBoost  
+- **LLM & Embeddings:** OpenAI GPT-4/Groq, HuggingFace Transformers  
+- **APIs Integrated:** Data.gov.in Mandi Price API, Weather API  
+- **Voice Support:** OpenAI Whisper (STT), gTTS (TTS)  
 
-```bash
-git clone https://github.com/<your-username>/AgriAssist-AI.git
-cd AgriAssist-AI
-```
+---
 
-### 2️⃣ Install System Dependencies
-
-Create `apt.txt` (for Render/Streamlit Cloud):
-
-```
-portaudio19-dev
-```
-
-Or install locally (Ubuntu):
+## ⚙️ Installation & Setup  
 
 ```bash
-sudo apt-get update && sudo apt-get install portaudio19-dev
-```
+# 1️⃣ Clone the Repository
+git clone https://github.com/yourusername/agroassist-ai.git
+cd agroassist-ai
 
-### 3️⃣ Create Virtual Environment & Install Requirements
+# 2️⃣ Create Virtual Environment
+python -m venv venv
+source venv/bin/activate   # On Windows: venv\Scripts\activate
 
-```bash
-python3 -m venv venv
-source venv/bin/activate
+# 3️⃣ Install Dependencies
 pip install -r requirements.txt
-```
 
-### 4️⃣ Run Backend
+# 4️⃣ Setup Environment Variables
+cp .env.example .env
+# Fill in API keys (OpenAI, Pinecone, Weather API, etc.) in .env file
 
-```bash
-uvicorn backend:app --host 0.0.0.0 --port 8000 --reload
-```
+# 5️⃣ Run Backend (FastAPI)
+uvicorn backend:app --reload
 
-### 5️⃣ Run Streamlit App
-
-```bash
+# 6️⃣ Run Frontend (Streamlit)
 streamlit run app.py
-```
-
----
-
-## 🖼️ Project Architecture
-
-```text
-📂 AgriAssist-AI
- ┣ 📜 backend.py        # FastAPI RAG backend
- ┣ 📜 app.py            # Streamlit dashboard
- ┣ 📂 models            # ML models for disease prediction
- ┣ 📂 data              # Sample training datasets
- ┣ 📂 utils             # Helper functions
- ┣ 📜 requirements.txt  # Python dependencies
- ┣ 📜 apt.txt           # System dependencies for deployment
- ┗ 📜 README.md
-```
-
----
-
-## 🌐 Deployment
-
-* **Render:** Add `apt.txt` for system deps, then deploy with
-  `apt-get update && apt-get install -y portaudio19-dev && pip install -r requirements.txt`
-* **Streamlit Cloud:** Just push `apt.txt` + `requirements.txt` → Auto-build
-
----
-
-## 📊 Demo
-
-🔗 **Live Demo:** [https://end-to-end-heart-disease-prediction-mhwpmnmvxn9hsahbuvxj6m.streamlit.app/](https://end-to-end-heart-disease-prediction-mhwpmnmvxn9hsahbuvxj6m.streamlit.app/)
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Feel free to fork the repo, open issues, and submit PRs.
-
----
-
-## 📜 License
-
-This project is licensed under the **MIT License** – free to use, modify, and distribute.
-
