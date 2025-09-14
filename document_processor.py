@@ -4,7 +4,8 @@ from langchain_community.document_loaders import (
     PyPDFLoader, 
     TextLoader, 
     UnstructuredWordDocumentLoader,
-    UnstructuredMarkdownLoader
+    UnstructuredMarkdownLoader,
+    PDFPlumberLoader
 )
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -100,7 +101,17 @@ class DocumentProcessor:
         
         try:
             if ext == '.pdf':
-                loader = PyPDFLoader(file_path)
+                try:
+                    loader = PyPDFLoader(file_path)
+                    return loader.load()
+                except Exception as pdf_error:
+                    logger.warning(f"PyPDFLoader failed, trying PDFPlumberLoader for {file_path}: {str(pdf_error)}")
+                    try:
+                        loader = PDFPlumberLoader(file_path)
+                        return loader.load()
+                    except Exception as plumber_error:
+                        logger.error(f"Both PDF loaders failed for {file_path}. PDFPlumber error: {str(plumber_error)}")
+                        return []
             elif ext == '.txt':
                 loader = TextLoader(file_path, encoding='utf-8')
             elif ext in ['.doc', '.docx']:

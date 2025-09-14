@@ -39,3 +39,14 @@ ffmpeg-python
 numpy
 arxiv
 wikipedia
+tf-keras
+gtts
+soundfile
+gTTS
+apscheduler
+requests
+twilio
+easyocr
+pytesseract 
+Pillow
+scikit-learn
