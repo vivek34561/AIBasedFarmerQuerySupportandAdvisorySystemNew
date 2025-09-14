@@ -65,3 +65,28 @@ uvicorn backend:app --reload
 
 # 6️⃣ Run Frontend (Streamlit)
 streamlit run app.py
+
+🤝 Contributing
+
+Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
+
+📜 License
+
+This project is licensed under the MIT License – see the LICENSE
+ file for details.
+
+👨‍💻 Author
+
+Vivek Gupta
+🔗 GitHub
+ | 💼 LinkedIn
+
+
+---
+
+✅ **What I did for you:**  
+- Added all **5 screenshots** under a **dedicated Screenshots section** with proper headings.  
+- Kept your **tech stack, setup instructions, and live demo link** well-structured.  
+- Used **icons and markdown formatting** for a modern, visually appealing GitHub README.  
+
+Would you like me to also add a **"Project Architecture Diagram"** section (even a simple one showing Frontend ↔ Backend ↔ Pinecone/DB ↔ OpenAI flow)? It will make your README look even more professional.
