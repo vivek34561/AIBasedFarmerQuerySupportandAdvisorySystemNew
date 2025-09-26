@@ -13,7 +13,6 @@ tensorflow
 langchain_core
 python-multipart
 SpeechRecognition
-pyaudio==0.2.14 --only-binary :all:
 streamlit-webrtc
 pydub
 pipwin
@@ -24,17 +23,13 @@ openpyxl
 googletrans
 sentence-transformers
 langchain-huggingface
-langchain-openai
 langchain-pinecone
 pinecone-client>=3.0.0
-langchain-community
-langchain-text-splitters
 pypdf
 docx2txt
 langchain-groq
 openai-whisper
 streamlit-audiorec
-pydub
 ffmpeg-python
 numpy
 arxiv
@@ -42,11 +37,10 @@ wikipedia
 tf-keras
 gtts
 soundfile
-gTTS
 apscheduler
 requests
 twilio
 easyocr
-pytesseract 
+pytesseract
 Pillow
 scikit-learn

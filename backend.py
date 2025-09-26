@@ -376,8 +376,8 @@ def get_mandi_prices(arrival_date: date, district: str, commodity: str, market: 
         "filters[district]": district,
         "filters[market]": market,
         "filters[commodity]": commodity,
-        "filters[variety]": "Robusta",
-        "filters[grade]": "FAQ"
+        "filters[variety]": "Palayamthodan",
+        "filters[grade]": "Medium"
     }
     if market:
         params["filters[market]"] = market.title()
@@ -759,8 +759,5 @@ def escalate_query(request: EscalateRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-    
-    
-
-    
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("backend:app", host="0.0.0.0", port=port)
